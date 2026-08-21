@@ -41,6 +41,65 @@
     document.querySelectorAll("[data-business-name]").forEach((el) => (el.textContent = SITE_CONFIG.businessName));
     document.querySelectorAll("[data-business-address]").forEach((el) => (el.textContent = SITE_CONFIG.businessAddress));
     document.querySelectorAll("[data-business-hours]").forEach((el) => (el.textContent = SITE_CONFIG.businessHours));
+
+    const query = encodeURIComponent(`${SITE_CONFIG.businessName}, ${SITE_CONFIG.businessAddress}`);
+
+    const mapsLink = document.getElementById("location-maps-link");
+    if (mapsLink) {
+      mapsLink.setAttribute("href", `https://www.google.com/maps/search/?api=1&query=${query}`);
+    }
+  }
+
+  /* ---------- Location map (Leaflet + OpenStreetMap, sem chave de API) ---------- */
+  async function initLocationMap() {
+    const canvas = document.getElementById("location-map-canvas");
+    if (!canvas || typeof L === "undefined") return;
+
+    const address = SITE_CONFIG.businessAddress;
+    const geocodeQuery = encodeURIComponent(address);
+    const mapsQuery = encodeURIComponent(`${SITE_CONFIG.businessName}, ${address}`);
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
+
+    let lat = -18.8511;
+    let lon = -41.9494; // Governador Valadares/MG — usado como centro de fallback caso a geocodificação falhe
+    let found = false;
+
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${geocodeQuery}`);
+      const results = await res.json();
+      if (results && results[0]) {
+        lat = parseFloat(results[0].lat);
+        lon = parseFloat(results[0].lon);
+        found = true;
+      }
+    } catch (err) {
+      console.warn("Não foi possível geocodificar o endereço, exibindo mapa aproximado.", err);
+    }
+
+    const map = L.map(canvas, {
+      center: [lat, lon],
+      zoom: found ? 16 : 13,
+      scrollWheelZoom: false,
+    });
+
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 19,
+    }).addTo(map);
+
+    const pinIcon = L.divIcon({
+      className: "map-pin",
+      html: `<svg viewBox="0 0 24 30" width="34" height="42"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 18 12 18s12-9 12-18c0-6.6-5.4-12-12-12Z" fill="var(--color-accent)"/><circle cx="12" cy="12" r="5" fill="#fff"/></svg>`,
+      iconSize: [34, 42],
+      iconAnchor: [17, 42],
+      popupAnchor: [0, -38],
+    });
+
+    const marker = L.marker([lat, lon], { icon: pinIcon }).addTo(map);
+    marker.bindPopup(
+      `<strong>${SITE_CONFIG.businessName}</strong><br>${address}<br><a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Ver no Google Maps →</a>`
+    );
+    marker.openPopup();
   }
 
   /* ---------- Portfolio rendering ---------- */
@@ -149,6 +208,37 @@
     });
   }
 
+  /* ---------- Logo viewer ---------- */
+  function bindLogoViewer() {
+    const trigger = document.getElementById("logo-viewer-trigger");
+    const modal = document.getElementById("logo-viewer");
+    if (!trigger || !modal) return;
+    const close = document.getElementById("logo-viewer-close");
+
+    function open(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.classList.add("no-scroll");
+      close.focus();
+    }
+    function hide() {
+      modal.classList.remove("is-open");
+      modal.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("no-scroll");
+    }
+
+    trigger.addEventListener("click", open);
+    close.addEventListener("click", hide);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) hide();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal.classList.contains("is-open")) hide();
+    });
+  }
+
   /* ---------- FAQ accordion ---------- */
   function bindFaq() {
     document.querySelectorAll(".faq-item").forEach((item) => {
@@ -224,10 +314,12 @@
   /* ---------- Init ---------- */
   document.addEventListener("DOMContentLoaded", () => {
     fillBusinessInfo();
+    initLocationMap();
     renderPortfolio();
     bindWhatsappLinks();
     bindInstagramLinks();
     bindLightbox();
+    bindLogoViewer();
     bindFaq();
     bindMobileMenu();
     bindScrollUi();

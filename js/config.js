@@ -12,7 +12,7 @@ const SITE_CONFIG = {
 
   instagramUrl: "https://www.instagram.com/atelie_do_bordado/",
 
-  businessAddress: "Rua Caio Martins, 123 — Centro",
+  businessAddress: "Rua Caio Martins, 123 — Centro, Governador Valadares/MG",
 
   businessHours: "Segunda a sexta, das 8h às 18h · Sábado, das 8h às 12h",
 

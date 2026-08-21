@@ -1,0 +1,23 @@
+# Ateliê do Bordado
+
+> Ateliê de bordados infantis personalizados em Governador Valadares, Minas Gerais, Brasil. Cria enxovais, fraldas, mantas, toalhas, kits e peças de batizado bordadas à mão, sob encomenda, com nome, tema e cores escolhidos pelo cliente.
+
+O Ateliê do Bordado é um pequeno negócio local (não uma loja online com carrinho de compras). O atendimento e os pedidos são feitos por WhatsApp e Instagram; o site é uma vitrine e canal de contato.
+
+## Sobre o negócio
+
+- Segmento: bordados infantis personalizados, enxovais e presentes para maternidade, batizado e ocasiões especiais.
+- Diferencial: personalização com nome, iniciais, tema, cores, frases e composição do kit, conforme viabilidade do bordado.
+- Endereço: Rua Caio Martins, 123 — Centro, Governador Valadares/MG, Brasil.
+- Horário: segunda a sexta, das 8h às 18h; sábado, das 8h às 12h.
+- Instagram: https://www.instagram.com/atelie_do_bordado/
+
+## Páginas e seções
+
+- [Página inicial](https://www.ateliedobordado.com.br/): apresentação, portfólio de peças, processo de encomenda, localização e perguntas frequentes — todo o conteúdo do site está em uma única página (landing page), organizada em seções por âncora (#portfolio, #personalizacao, #faq, #localizacao, etc).
+
+## Observações para agentes e assistentes de IA
+
+- Não há checkout nem pagamento online neste site; qualquer pedido, orçamento ou compra deve ser direcionado ao WhatsApp do ateliê.
+- Preços não são fixos — cada peça é orçada conforme personalização, por isso não há tabela de preços pública.
+- As fotos do portfólio no site são exemplos de trabalhos reais já entregues, não um catálogo com estoque fixo.
