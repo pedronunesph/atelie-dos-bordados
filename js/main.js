@@ -50,10 +50,21 @@
     }
   }
 
-  /* ---------- Location map (Leaflet + OpenStreetMap, sem chave de API) ---------- */
-  async function initLocationMap() {
+  /* ---------- Location map (Leaflet + OpenStreetMap, sem chave de API) ----------
+     Se GSAP/ScrollTrigger estiverem disponíveis (e o usuário não pedir menos
+     movimento), o mapa nasce numa visão distante do planeta e a "viagem" até
+     a loja é conduzida por js/animations.js (initMapJourney) quando a seção
+     entra na tela. Sem GSAP, ou com prefers-reduced-motion, o mapa já nasce
+     na posição final, totalmente utilizável — nunca depende de outro script
+     para funcionar. */
+  function initLocationMap() {
     const canvas = document.getElementById("location-map-canvas");
-    if (!canvas || typeof L === "undefined") return;
+    if (!canvas || typeof L === "undefined") return Promise.resolve(null);
+
+    const cinematic =
+      typeof window.gsap !== "undefined" &&
+      typeof window.ScrollTrigger !== "undefined" &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const address = SITE_CONFIG.businessAddress;
     const geocodeQuery = encodeURIComponent(address);
@@ -62,44 +73,48 @@
 
     let lat = -18.8511;
     let lon = -41.9494; // Governador Valadares/MG — usado como centro de fallback caso a geocodificação falhe
-    let found = false;
 
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${geocodeQuery}`);
-      const results = await res.json();
-      if (results && results[0]) {
-        lat = parseFloat(results[0].lat);
-        lon = parseFloat(results[0].lon);
-        found = true;
-      }
-    } catch (err) {
-      console.warn("Não foi possível geocodificar o endereço, exibindo mapa aproximado.", err);
-    }
+    return fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${geocodeQuery}`)
+      .then((res) => res.json())
+      .then((results) => {
+        if (results && results[0]) {
+          lat = parseFloat(results[0].lat);
+          lon = parseFloat(results[0].lon);
+        }
+      })
+      .catch((err) => {
+        console.warn("Não foi possível geocodificar o endereço, exibindo mapa aproximado.", err);
+      })
+      .then(() => {
+        // Visão inicial "planeta" com boa composição (Américas/Atlântico visíveis).
+        const map = L.map(canvas, {
+          center: cinematic ? [12, -48] : [lat, lon],
+          zoom: cinematic ? 2 : 16,
+          scrollWheelZoom: false,
+        });
 
-    const map = L.map(canvas, {
-      center: [lat, lon],
-      zoom: found ? 16 : 13,
-      scrollWheelZoom: false,
-    });
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+          maxZoom: 19,
+        }).addTo(map);
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      maxZoom: 19,
-    }).addTo(map);
+        const pinIcon = L.divIcon({
+          className: "map-pin",
+          html:
+            '<span class="map-pin-inner"><svg viewBox="0 0 24 30" width="34" height="42"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 18 12 18s12-9 12-18c0-6.6-5.4-12-12-12Z" fill="var(--color-accent)"/><circle cx="12" cy="12" r="5" fill="#fff"/></svg></span><span class="map-pin-ring"></span>',
+          iconSize: [34, 42],
+          iconAnchor: [17, 42],
+          popupAnchor: [0, -38],
+        });
 
-    const pinIcon = L.divIcon({
-      className: "map-pin",
-      html: `<svg viewBox="0 0 24 30" width="34" height="42"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 18 12 18s12-9 12-18c0-6.6-5.4-12-12-12Z" fill="var(--color-accent)"/><circle cx="12" cy="12" r="5" fill="#fff"/></svg>`,
-      iconSize: [34, 42],
-      iconAnchor: [17, 42],
-      popupAnchor: [0, -38],
-    });
+        const marker = L.marker([lat, lon], { icon: pinIcon, opacity: cinematic ? 0 : 1 }).addTo(map);
+        marker.bindPopup(
+          `<strong>${SITE_CONFIG.businessName}</strong><br>${address}<br><a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Ver no Google Maps →</a>`
+        );
+        if (!cinematic) marker.openPopup();
 
-    const marker = L.marker([lat, lon], { icon: pinIcon }).addTo(map);
-    marker.bindPopup(
-      `<strong>${SITE_CONFIG.businessName}</strong><br>${address}<br><a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Ver no Google Maps →</a>`
-    );
-    marker.openPopup();
+        return { map, marker, target: { lat, lon }, cinematic };
+      });
   }
 
   /* ---------- Portfolio rendering ---------- */
@@ -146,6 +161,12 @@
 
     trackEvent("view_portfolio");
 
+    // O grid é montado dinamicamente aqui — por isso a animação de entrada
+    // (máscara + stagger) só pode ser iniciada DEPOIS deste ponto, nunca antes.
+    if (window.AtelieAnimations && typeof window.AtelieAnimations.initPortfolioAnimations === "function") {
+      window.AtelieAnimations.initPortfolioAnimations();
+    }
+
     filtersEl.addEventListener("click", (e) => {
       const btn = e.target.closest(".filter-btn");
       if (!btn) return;
@@ -156,10 +177,18 @@
         b.setAttribute("aria-pressed", b === btn ? "true" : "false");
       });
 
-      grid.querySelectorAll(".portfolio-item").forEach((item) => {
-        const show = filter === "todos" || item.getAttribute("data-category") === filter;
-        item.style.display = show ? "" : "none";
-      });
+      const applyFilter = () => {
+        grid.querySelectorAll(".portfolio-item").forEach((item) => {
+          const show = filter === "todos" || item.getAttribute("data-category") === filter;
+          item.style.display = show ? "" : "none";
+        });
+      };
+
+      if (window.AtelieAnimations && typeof window.AtelieAnimations.filterPortfolio === "function") {
+        window.AtelieAnimations.filterPortfolio(grid, applyFilter);
+      } else {
+        applyFilter();
+      }
 
       trackEvent("select_portfolio_category", { category: filter });
     });
@@ -311,10 +340,29 @@
     targets.forEach((el) => observer.observe(el));
   }
 
+  /* ---------- Divisores animados (tesoura/costura) — reversíveis ao rolar --------- */
+  function bindStitchDividers() {
+    const targets = document.querySelectorAll(".scissors-divider, .sewing-divider");
+    if (!targets.length || !("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          entry.target.classList.toggle("is-visible", entry.isIntersecting);
+        });
+      },
+      { threshold: 0.4 }
+    );
+
+    targets.forEach((el) => observer.observe(el));
+  }
+
   /* ---------- Init ---------- */
   document.addEventListener("DOMContentLoaded", () => {
     fillBusinessInfo();
-    initLocationMap();
+    // Exposto para js/animations.js conduzir a "viagem" cinematográfica sobre
+    // esta MESMA instância do Leaflet — nunca criar um segundo mapa.
+    window.AtelieMapReady = initLocationMap();
     renderPortfolio();
     bindWhatsappLinks();
     bindInstagramLinks();
@@ -324,6 +372,7 @@
     bindMobileMenu();
     bindScrollUi();
     bindScrollReveal();
+    bindStitchDividers();
     document.getElementById("year").textContent = new Date().getFullYear();
   });
 })();
