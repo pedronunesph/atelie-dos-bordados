@@ -130,40 +130,50 @@
       });
     }
 
-    // 3) paralaxe leve no scroll — cada foto em velocidade diferente + escala sutil.
-    //    matchMedia: parallax completo no desktop, reduzido no mobile/tablet.
+    // 3) paralaxe leve no scroll — cada camada numa velocidade diferente.
+    //    IMPORTANTE: a paralaxe nunca anima os mesmos elementos/propriedades
+    //    que a entrada acima já controla — fotos usam um wrapper próprio
+    //    (.hero-parallax-layer) só para isso, e o texto usa o container
+    //    .hero-text (nunca tocado pela entrada, que só anima seus filhos
+    //    individualmente). Assim as duas animações nunca disputam a mesma
+    //    propriedade no mesmo elemento.
+    //    matchMedia: completa no desktop, reduzida no tablet, desligada em
+    //    telas muito pequenas (custo de scroll não compensa em aparelhos
+    //    fracos nem numa faixa de tela onde o efeito quase não se percebe).
+    const parallaxLayers = [...hero.querySelectorAll(".hero-parallax-layer")];
+    const heroText = hero.querySelector(".hero-text");
+
     const mm = gsap.matchMedia();
     mm.add(
       {
         isDesktop: "(min-width: 900px)",
-        isMobile: "(max-width: 899px)",
+        isTablet: "(min-width: 480px) and (max-width: 899px)",
+        isSmallPhone: "(max-width: 479px)",
       },
       (context) => {
-        const { isDesktop } = context.conditions;
+        const { isDesktop, isSmallPhone } = context.conditions;
+        if (isSmallPhone) return; // tela pequena: sem paralaxe de scroll, só a entrada
+
         const rate1 = isDesktop ? -36 : -14;
         const rate2 = isDesktop ? -64 : -22;
+        const scrollCfg = { trigger: hero, start: "top top", end: "bottom top", scrub: 0.6 };
 
-        if (items[0]) {
-          gsap.to(items[0], {
-            y: rate1,
-            scale: 1.04,
-            ease: "none",
-            scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: 0.6 },
-          });
+        if (parallaxLayers[0]) {
+          gsap.to(parallaxLayers[0], { y: rate1, scale: 1.04, ease: "none", scrollTrigger: scrollCfg });
         }
-        if (items[1]) {
-          gsap.to(items[1], {
-            y: rate2,
-            scale: 1.05,
-            ease: "none",
-            scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: 0.6 },
-          });
+        if (parallaxLayers[1]) {
+          gsap.to(parallaxLayers[1], { y: rate2, scale: 1.05, ease: "none", scrollTrigger: scrollCfg });
         }
-        if (h1) {
-          gsap.to(h1, {
+        if (doodle && isDesktop === false) {
+          // a seta já é escondida em telas ≥900px via CSS; na faixa em que
+          // aparece, ganha uma terceira camada de profundidade, bem discreta.
+          gsap.to(doodle, { y: -10, ease: "none", scrollTrigger: scrollCfg });
+        }
+        if (heroText) {
+          gsap.to(heroText, {
             y: isDesktop ? -18 : -8,
             ease: "none",
-            scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: 0.6 },
+            scrollTrigger: scrollCfg,
           });
         }
       }
@@ -171,95 +181,30 @@
   }
 
   /* =========================================================
-     2. TESOURA — .scissors-divider — 100% controlada pelo progresso do scroll
+     2. REVEAL DE SEÇÃO — "Nossa história" — máscara + fade + leve slide ao
+     entrar na tela. Substitui a antiga animação de tesoura/tecido: mais
+     simples, sem metáfora, sem risco visual — só presença discreta no ponto
+     onde a página começa a contar a história do ateliê.
      ========================================================= */
-  function initScissors() {
-    const divider = document.querySelector(".scissors-divider");
-    if (!divider) return;
+  function initSectionReveal() {
+    const section = document.getElementById("identificacao");
+    if (!section || reduceMotion) return;
+    const target = section.querySelector(".container");
+    if (!target) return;
 
-    const cutPath = divider.querySelector(".cut-path");
-    const icon = divider.querySelector(".scissors-icon");
-    const bladeTop = divider.querySelector(".scissors-blade--top");
-    const bladeBottom = divider.querySelector(".scissors-blade--bottom");
-    const bandTop = divider.querySelector(".fabric-band--top");
-    const bandBottom = divider.querySelector(".fabric-band--bottom");
-    if (!cutPath || !icon) return;
-
-    const pathLength = cutPath.getTotalLength();
-    gsap.set(cutPath, { strokeDasharray: pathLength, strokeDashoffset: pathLength });
-
-    const viewBoxEl = cutPath.ownerSVGElement.viewBox.baseVal;
-
-    if (reduceMotion) {
-      // Sem animação: mostra o estado final (corte completo, tesoura no fim) de imediato.
-      const endPt = cutPath.getPointAtLength(pathLength);
-      gsap.set(cutPath, { strokeDashoffset: 0 });
-      gsap.set(icon, {
-        xPercent: -50,
-        yPercent: -50,
-        x: (endPt.x / viewBoxEl.width) * divider.offsetWidth,
-        y: (endPt.y / viewBoxEl.height) * divider.offsetHeight,
-      });
-      return;
-    }
-
-    // Progresso puro (0 → 1) é a única fonte de verdade — tudo (linha, tesoura,
-    // lâminas, tecido) é uma função direta desse valor, por isso reverte
-    // perfeitamente ao subir a página, sem eventos separados de enter/leave.
-    const viewBox = viewBoxEl;
-
-    // Converte um ponto do espaço do path (viewBox) para pixels reais do
-    // divisor — necessário porque preserveAspectRatio="none" estica os
-    // eixos de forma não uniforme.
-    function toPixels(pt, dividerWidth, dividerHeight) {
-      return {
-        x: (pt.x / viewBox.width) * dividerWidth,
-        y: (pt.y / viewBox.height) * dividerHeight,
-      };
-    }
-
-    function render(progress) {
-      const dividerWidth = divider.offsetWidth;
-      const dividerHeight = divider.offsetHeight;
-
-      gsap.set(cutPath, { strokeDashoffset: pathLength * (1 - progress) });
-
-      // A tesoura segue o próprio caminho sinuoso do corte (não uma reta),
-      // com leve inclinação acompanhando a curva — um traçado mais
-      // "mirabolante" e editorial do que um avanço horizontal simples.
-      const here = pathLength * progress;
-      const delta = Math.min(6, pathLength * 0.01);
-      const p0 = cutPath.getPointAtLength(Math.max(0, here - delta));
-      const p1 = cutPath.getPointAtLength(Math.min(pathLength, here + delta));
-      const pos = toPixels(cutPath.getPointAtLength(here), dividerWidth, dividerHeight);
-      const a = toPixels(p0, dividerWidth, dividerHeight);
-      const b = toPixels(p1, dividerWidth, dividerHeight);
-      const angle = Math.atan2(b.y - a.y, b.x - a.x) * (180 / Math.PI);
-      const tilt = Math.max(-16, Math.min(16, angle)); // sutil, sem giro excessivo
-
-      gsap.set(icon, { xPercent: -50, yPercent: -50, x: pos.x, y: pos.y, rotation: tilt });
-
-      // Lâminas abrindo/fechando bem devagar — só 3 "mordidas" ao longo de
-      // toda a travessia, para parecer um corte controlado, não um tremor.
-      const snip = 6 + Math.abs(Math.sin(progress * Math.PI * 3)) * 8; // 6°–14°
-      if (bladeTop) gsap.set(bladeTop, { rotation: -snip });
-      if (bladeBottom) gsap.set(bladeBottom, { rotation: snip });
-
-      // Tecido se afasta muito sutilmente conforme o corte avança.
-      const separate = progress * 4; // 0–4px
-      if (bandTop) gsap.set(bandTop, { y: -separate });
-      if (bandBottom) gsap.set(bandBottom, { y: separate });
-    }
-
-    render(0);
-
+    gsap.set(target, { opacity: 0, y: 22, clipPath: "inset(8% round 4px)" });
     ScrollTrigger.create({
-      trigger: divider,
-      start: "top 90%",
-      end: "bottom 20%",
-      scrub: 0.8,
-      onUpdate: (self) => render(self.progress),
-      onRefresh: (self) => render(self.progress),
+      trigger: section,
+      start: "top 85%",
+      once: true,
+      onEnter: () =>
+        gsap.to(target, {
+          opacity: 1,
+          y: 0,
+          clipPath: "inset(0% round 0px)",
+          duration: 0.85,
+          ease: "power3.out",
+        }),
     });
   }
 
@@ -544,21 +489,27 @@
     const visual = section.querySelector(".customization-visual");
 
     if (names.length) {
-      gsap.set(names, { opacity: 0, y: 24, clipPath: "inset(0% 0% 100% 0%)" });
-      ScrollTrigger.create({
-        trigger: visual || section,
-        start: "top 78%",
-        once: true,
-        onEnter: () =>
-          gsap.to(names, {
-            opacity: 1,
-            y: 0,
-            clipPath: "inset(0% 0% 0% 0%)",
-            duration: 0.7,
-            stagger: 0.15,
-            ease: "power3.out",
-          }),
+      // Cada nome "cai" de cima e pousa em sequência conforme o scroll avança
+      // pela seção — não é um stagger de entrada único, é uma queda em cascata
+      // controlada pelo progresso do scroll (reversível ao subir a página).
+      names.forEach((el, i) => {
+        gsap.set(el, { opacity: 0, y: -46, rotation: i % 2 === 0 ? -5 : 5 });
       });
+      gsap.timeline({
+        scrollTrigger: {
+          trigger: visual || section,
+          start: "top 85%",
+          end: "top 25%",
+          scrub: 0.7,
+        },
+      }).to(names, {
+        opacity: 1,
+        y: 0,
+        rotation: 0,
+        duration: 0.6,
+        ease: "power2.out",
+        stagger: 0.45,
+      }, 0);
     }
 
     if (tags.length) {
@@ -719,6 +670,68 @@
   }
 
   /* =========================================================
+     10b. CARDS DE IDENTIFICAÇÃO — leve tilt 3D seguindo o cursor (desktop)
+     ========================================================= */
+  function initIdentificationTilt() {
+    if (!isFinePointer || reduceMotion) return;
+    document.querySelectorAll(".identification-card").forEach((card) => {
+      gsap.set(card, { transformPerspective: 700 });
+      const quickRotY = gsap.quickTo(card, "rotateY", { duration: 0.4, ease: "power3.out" });
+      const quickRotX = gsap.quickTo(card, "rotateX", { duration: 0.4, ease: "power3.out" });
+
+      card.addEventListener("mousemove", (e) => {
+        const rect = card.getBoundingClientRect();
+        const relX = (e.clientX - rect.left) / rect.width - 0.5;
+        const relY = (e.clientY - rect.top) / rect.height - 0.5;
+        quickRotY(relX * 9); // sutil — nada de exagero cartunesco
+        quickRotX(relY * -7);
+      });
+      card.addEventListener("mouseleave", () => {
+        quickRotY(0);
+        quickRotX(0);
+      });
+    });
+  }
+
+  /* =========================================================
+     10c. FAQ — altura animada via GSAP (mais precisa que max-height).
+     main.js continua controlando QUANDO abre/fecha (clique, toggle de
+     classe, aria-expanded); aqui só vive a animação em si — a mesma
+     divisão de responsabilidades usada no portfólio e no mapa.
+     ========================================================= */
+  function initFaqAnimations() {
+    document.querySelectorAll(".faq-answer").forEach((answer) => {
+      gsap.set(answer, { height: 0 });
+    });
+  }
+
+  function toggleFaq(item, isOpen) {
+    const answer = item.querySelector(".faq-answer");
+    if (!answer) return;
+
+    if (reduceMotion) {
+      gsap.set(answer, { height: isOpen ? "auto" : 0 });
+      return;
+    }
+
+    gsap.killTweensOf(answer);
+    if (isOpen) {
+      gsap.set(answer, { height: "auto" });
+      const target = answer.offsetHeight;
+      gsap.fromTo(
+        answer,
+        { height: 0 },
+        { height: target, duration: 0.45, ease: "power3.out", onComplete: () => gsap.set(answer, { height: "auto" }) }
+      );
+    } else {
+      gsap.set(answer, { height: answer.offsetHeight }); // parte do valor real, nunca de "auto"
+      gsap.to(answer, { height: 0, duration: 0.35, ease: "power2.inOut" });
+    }
+  }
+
+  window.AtelieAnimations.toggleFaq = toggleFaq;
+
+  /* =========================================================
      11. SCROLL THREAD — indicador de progresso na lateral (desktop)
      ========================================================= */
   function initScrollThread() {
@@ -728,6 +741,66 @@
       scaleY: 1,
       ease: "none",
       scrollTrigger: { trigger: document.body, start: "top top", end: "bottom bottom", scrub: 0.3 },
+    });
+  }
+
+  /* =========================================================
+     11b. NAV ATIVA — sublinhado "costurado" que desliza até o link da
+     seção visível (desktop apenas). Um ScrollTrigger por seção (mesmo
+     padrão do resto do arquivo), sem listener de scroll extra.
+     ========================================================= */
+  function initActiveNavIndicator() {
+    const nav = document.getElementById("main-nav");
+    const indicator = nav ? nav.querySelector(".nav-active-indicator") : null;
+    if (!nav || !indicator) return;
+
+    const links = [...nav.querySelectorAll('a[href^="#"]')]
+      .map((link) => ({ link, section: document.getElementById(link.getAttribute("href").slice(1)) }))
+      .filter((entry) => entry.section);
+    if (!links.length) return;
+
+    let activeLink = null;
+
+    function moveIndicatorTo(link) {
+      const isDesktop = window.matchMedia("(min-width: 900px)").matches;
+      if (!isDesktop) {
+        gsap.set(indicator, { opacity: 0 });
+        return;
+      }
+      const navRect = nav.getBoundingClientRect();
+      const linkRect = link.getBoundingClientRect();
+      // x/y calculados a partir do próprio link (não de um `bottom` fixo no
+      // container do nav) — assim o traço fica sempre colado ao link certo,
+      // mesmo que o nav quebre em mais de uma linha em alguma largura.
+      gsap.to(indicator, {
+        x: linkRect.left - navRect.left,
+        y: linkRect.bottom - navRect.top + 4,
+        width: linkRect.width,
+        opacity: 1,
+        duration: reduceMotion ? 0 : 0.4,
+        ease: "power3.out",
+      });
+    }
+
+    function setActive(link) {
+      if (activeLink === link) return;
+      activeLink = link;
+      links.forEach(({ link: l }) => l.classList.toggle("is-active", l === link));
+      moveIndicatorTo(link);
+    }
+
+    links.forEach(({ link, section }) => {
+      ScrollTrigger.create({
+        trigger: section,
+        start: "top 45%",
+        end: "bottom 45%",
+        onEnter: () => setActive(link),
+        onEnterBack: () => setActive(link),
+      });
+    });
+
+    window.addEventListener("resize", () => {
+      if (activeLink) moveIndicatorTo(activeLink);
     });
   }
 
@@ -882,7 +955,7 @@
   /* ---------- Init ---------- */
   document.addEventListener("DOMContentLoaded", () => {
     initHero();
-    initScissors();
+    initSectionReveal();
     initSewing();
     initMapJourney();
     initPersonalizacao();
@@ -891,7 +964,10 @@
     initCtaFinal();
     initMagneticButtons();
     initBenefitCards();
+    initIdentificationTilt();
+    initFaqAnimations();
     initScrollThread();
+    initActiveNavIndicator();
     initHeadings();
     initCustomCursor();
 

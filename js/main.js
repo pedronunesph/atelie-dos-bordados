@@ -270,6 +270,12 @@
 
   /* ---------- FAQ accordion ---------- */
   function bindFaq() {
+    const animateFaq = (item, isOpen) => {
+      if (window.AtelieAnimations && typeof window.AtelieAnimations.toggleFaq === "function") {
+        window.AtelieAnimations.toggleFaq(item, isOpen);
+      }
+    };
+
     document.querySelectorAll(".faq-item").forEach((item) => {
       const question = item.querySelector(".faq-question");
       question.addEventListener("click", () => {
@@ -277,10 +283,12 @@
         document.querySelectorAll(".faq-item.is-open").forEach((el) => {
           el.classList.remove("is-open");
           el.querySelector(".faq-question").setAttribute("aria-expanded", "false");
+          animateFaq(el, false);
         });
         if (!isOpen) {
           item.classList.add("is-open");
           question.setAttribute("aria-expanded", "true");
+          animateFaq(item, true);
         }
       });
     });
@@ -320,8 +328,22 @@
     const targets = document.querySelectorAll("[data-reveal], [data-reveal-group]");
     if (!targets.length) return;
 
+    // Atraso escalonado entre os itens de um grupo, calculado via Motion
+    // (window.Motion, carregado por CDN) — funciona para qualquer quantidade de itens.
+    const hasMotionStagger = typeof Motion !== "undefined" && typeof Motion.stagger === "function";
+    const reveal = (el) => {
+      if (hasMotionStagger && el.hasAttribute("data-reveal-group")) {
+        const children = Array.from(el.children);
+        const delayFor = Motion.stagger(0.06);
+        children.forEach((child, i) => {
+          child.style.transitionDelay = `${delayFor(i, children.length)}s`;
+        });
+      }
+      el.classList.add("is-visible");
+    };
+
     if (!("IntersectionObserver" in window)) {
-      targets.forEach((el) => el.classList.add("is-visible"));
+      targets.forEach(reveal);
       return;
     }
 
@@ -329,7 +351,7 @@
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            entry.target.classList.add("is-visible");
+            reveal(entry.target);
             observer.unobserve(entry.target);
           }
         });

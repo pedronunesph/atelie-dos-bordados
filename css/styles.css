@@ -299,11 +299,13 @@ section[id], #contato { scroll-margin-top: var(--header-height); }
   transition: border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
 }
 .icon-link:hover { border-color: var(--color-accent); color: var(--color-accent-dark); transform: translateY(-2px); }
+.nav-active-indicator { display: none; }
 
 @media (min-width: 900px) {
   .menu-toggle { display: none; }
   .main-nav {
-    position: static;
+    position: relative;
+    top: auto; left: auto; right: auto; bottom: auto;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
@@ -331,7 +333,22 @@ section[id], #contato { scroll-margin-top: var(--header-height); }
   }
   .main-nav a:not(.icon-link):hover { color: var(--color-accent-dark); }
   .main-nav a:not(.icon-link):hover::after { width: 100%; }
+  .main-nav a.is-active { color: var(--color-accent-dark); }
   .nav-actions { margin-top: 0; }
+
+  /* Indicador único que desliza até o link ativo — desenhado como uma
+     costura corrida (traço-ponto), não uma linha sólida genérica. */
+  .nav-active-indicator {
+    display: block;
+    position: absolute;
+    top: 0; left: 0;
+    height: 1.5px;
+    width: 0;
+    opacity: 0;
+    background-image: repeating-linear-gradient(90deg, var(--color-accent) 0 5px, transparent 5px 9px);
+    pointer-events: none;
+    will-change: transform, width;
+  }
 }
 
 /* =========================================================
@@ -360,6 +377,7 @@ section[id], #contato { scroll-margin-top: var(--header-height); }
   z-index: 3;
   pointer-events: none;
 }
+.hero-parallax-layer { display: block; will-change: transform; }
 .hero-media-item {
   position: relative;
   overflow: hidden;
@@ -376,8 +394,10 @@ section[id], #contato { scroll-margin-top: var(--header-height); }
 }
 .hero-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-.hero-media-item:first-child { --rot: -2deg; transform: rotate(var(--rot)); }
-.hero-media-item:last-child { --rot: 2deg; transform: rotate(var(--rot)); }
+/* nth-of-type (não first/last-child): o SVG da seta também é filho de
+   .hero-media, então "last-child" cairia nele, não no segundo wrapper. */
+.hero-parallax-layer:nth-of-type(1) .hero-media-item { --rot: -2deg; transform: rotate(var(--rot)); }
+.hero-parallax-layer:nth-of-type(2) .hero-media-item { --rot: 2deg; transform: rotate(var(--rot)); }
 /* Entrada, paralaxe e o balanço contínuo são TODOS controlados via GSAP em
    js/animations.js (initHero()) — de propósito, para não haver uma CSS
    @keyframes disputando a propriedade `transform` ao mesmo tempo que o GSAP
@@ -455,6 +475,10 @@ section[id], #contato { scroll-margin-top: var(--header-height); }
 .identification-card {
   padding: 20px 0;
   border-bottom: 1px solid var(--color-line);
+  will-change: transform;
+}
+@media (hover: hover) and (pointer: fine) {
+  .identification-grid { perspective: 900px; }
 }
 .identification-card h3 { font-size: 1rem; margin-bottom: 4px; }
 .identification-card p { margin: 0; color: var(--color-ink-soft); font-size: 0.92rem; }
@@ -679,6 +703,18 @@ body.no-scroll { overflow: hidden; }
   background: linear-gradient(0deg, rgba(20,16,14,0.78), transparent);
   color: #fff; padding: 12px; font-weight: 600; font-size: 0.9rem;
 }
+/* Desktop: a legenda vira uma "etiqueta costurada" que sobe ao passar o
+   mouse — no touch ela continua sempre visível (acessibilidade). */
+@media (hover: hover) and (pointer: fine) {
+  .occasion-card img { transition: transform 0.6s var(--ease); }
+  .occasion-card:hover img { transform: scale(1.07); }
+  .occasion-caption {
+    transform: translateY(62%);
+    border-top: 1.5px dashed rgba(255, 255, 255, 0.55);
+    transition: transform 0.45s var(--ease);
+  }
+  .occasion-card:hover .occasion-caption { transform: translateY(0); }
+}
 @media (min-width: 700px) { .occasions-grid { grid-template-columns: repeat(3, 1fr); aspect-ratio: 3/2; } .occasion-card { aspect-ratio: 3/2; } }
 @media (min-width: 1000px) { .occasions-grid { grid-template-columns: repeat(3, 1fr); } }
 
@@ -834,15 +870,21 @@ body.no-scroll { overflow: hidden; }
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
 }
 .faq-question:hover { color: var(--color-accent-dark); }
-.faq-question::after { content: "+"; font-size: 1.3rem; color: var(--color-accent-dark); transition: transform 0.2s ease; flex-shrink: 0; }
+.faq-question::after {
+  content: "+"; font-size: 1.3rem; color: var(--color-accent-dark); flex-shrink: 0;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* leve elástico ao abrir/fechar */
+}
 .faq-item.is-open .faq-question::after { transform: rotate(45deg); }
 .faq-answer {
-  max-height: 0; overflow: hidden;
-  transition: max-height 0.4s var(--ease);
+  overflow: hidden;
   color: var(--color-ink-soft); font-size: 0.94rem;
 }
-.faq-answer > p { margin: 0; padding-bottom: 18px; }
+/* A altura é animada via GSAP (ver js/animations.js, initFaqAnimations) para
+   um resultado mais preciso que max-height. Sem JS/GSAP, este fallback
+   instantâneo garante que o conteúdo continue acessível. */
+.faq-answer { max-height: 0; }
 .faq-item.is-open .faq-answer { max-height: 1000px; }
+.faq-answer > p { margin: 0; padding-bottom: 18px; }
 
 /* =========================================================
    CTA final — seção cheia (sem cartão flutuante), com linha de "ponto"
@@ -873,36 +915,25 @@ body.no-scroll { overflow: hidden; }
    estado a cada frame com base na posição de rolagem, para permitir
    avançar e reverter de forma perfeitamente sincronizada.
    ========================================================= */
-.scissors-divider {
+/* Divisor simples entre Hero e "Nossa história" — sem animação própria,
+   apenas uma linha fina com um ponto central, na linguagem visual do site. */
+.section-divider {
   position: relative;
-  width: 100%; height: 90px;
-  max-width: 1000px; margin: 0 auto;
-  overflow: visible;
+  width: 100%; max-width: 260px;
+  margin: 8px auto 0;
+  display: flex; align-items: center; justify-content: center;
 }
-.fabric-band {
-  position: absolute; left: 4%; right: 4%; height: 2px;
-  background: var(--color-line);
-  border-radius: 2px;
-  opacity: 0.5;
+.section-divider-line {
+  width: 100%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-line) 20%, var(--color-line) 80%, transparent);
 }
-.fabric-band--top { top: 22px; }
-.fabric-band--bottom { top: calc(100% - 22px); }
-.scissors-line { display: block; width: 100%; height: 100%; }
-.cut-path {
-  fill: none;
-  stroke: var(--color-accent);
-  stroke-width: 3;
-  stroke-linecap: round;
-  opacity: 0.75;
+.section-divider-dot {
+  position: absolute; left: 50%; top: 50%;
+  width: 6px; height: 6px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--color-accent);
 }
-.scissors-icon {
-  position: absolute; top: 50%; left: 0;
-  width: 54px; height: 54px;
-  color: var(--color-accent-dark);
-  filter: drop-shadow(0 6px 12px rgba(199, 45, 112, 0.35));
-  will-change: transform;
-}
-.scissors-blade { transform-box: view-box; }
 
 /* =========================================================
    Divisor "linha sendo costurada" — entre Ocasiões e Sobre.
@@ -964,7 +995,7 @@ body.no-scroll { overflow: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scissors-icon, .sewing-needle { transition: none !important; }
+  .sewing-needle { transition: none !important; }
 }
 
 .cta-final-inner { max-width: 620px; margin: 0 auto; }
@@ -1044,8 +1075,17 @@ body.no-scroll { overflow: hidden; }
     background: #25D366; color: #fff; width: 52px; height: 52px; border-radius: 50%;
     align-items: center; justify-content: center; text-decoration: none;
     box-shadow: 0 8px 20px -8px rgba(0,0,0,0.4);
+    animation: whatsappPulse 5s ease-in-out infinite;
   }
-  .floating-whatsapp:hover { transform: scale(1.06); }
+  .floating-whatsapp:hover { transform: scale(1.06); animation-play-state: paused; }
+}
+/* Pulso muito sutil e espaçado — chama atenção sem irritar. */
+@keyframes whatsappPulse {
+  0%, 92%, 100% { transform: scale(1); }
+  96% { transform: scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .floating-whatsapp { animation: none; }
 }
 
 /* Mobile: barra inferior fixa, sempre visível e de fácil alcance do polegar */
@@ -1219,9 +1259,6 @@ body.has-custom-cursor .portfolio-item, body.has-custom-cursor .btn, body.has-cu
   transition: opacity 0.45s var(--ease), transform 0.45s var(--ease);
 }
 [data-reveal-group].is-visible > * { opacity: 1; transform: translateY(0); }
-[data-reveal-group].is-visible > *:nth-child(2) { transition-delay: 0.06s; }
-[data-reveal-group].is-visible > *:nth-child(3) { transition-delay: 0.12s; }
-[data-reveal-group].is-visible > *:nth-child(4) { transition-delay: 0.18s; }
 
 @media (prefers-reduced-motion: reduce) {
   [data-reveal], [data-reveal-group] > * { opacity: 1 !important; transform: none !important; transition: none !important; }
