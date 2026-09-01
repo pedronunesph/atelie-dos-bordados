@@ -137,9 +137,10 @@
     //    .hero-text (nunca tocado pela entrada, que só anima seus filhos
     //    individualmente). Assim as duas animações nunca disputam a mesma
     //    propriedade no mesmo elemento.
-    //    matchMedia: completa no desktop, reduzida no tablet, desligada em
-    //    telas muito pequenas (custo de scroll não compensa em aparelhos
-    //    fracos nem numa faixa de tela onde o efeito quase não se percebe).
+    //    matchMedia: completa no desktop, reduzida no tablet, bem sutil no
+    //    celular — mobile é o público principal do site, então em vez de
+    //    desligar o efeito ali, ele só fica mais discreto (menos distância
+    //    de translateY, para não pesar no scroll em aparelhos mais fracos).
     const parallaxLayers = [...hero.querySelectorAll(".hero-parallax-layer")];
     const heroText = hero.querySelector(".hero-text");
 
@@ -148,14 +149,12 @@
       {
         isDesktop: "(min-width: 900px)",
         isTablet: "(min-width: 480px) and (max-width: 899px)",
-        isSmallPhone: "(max-width: 479px)",
+        isPhone: "(max-width: 479px)",
       },
       (context) => {
-        const { isDesktop, isSmallPhone } = context.conditions;
-        if (isSmallPhone) return; // tela pequena: sem paralaxe de scroll, só a entrada
-
-        const rate1 = isDesktop ? -36 : -14;
-        const rate2 = isDesktop ? -64 : -22;
+        const { isDesktop, isTablet } = context.conditions;
+        const rate1 = isDesktop ? -36 : isTablet ? -14 : -7;
+        const rate2 = isDesktop ? -64 : isTablet ? -22 : -11;
         const scrollCfg = { trigger: hero, start: "top top", end: "bottom top", scrub: 0.6 };
 
         if (parallaxLayers[0]) {
@@ -954,26 +953,40 @@
 
   /* ---------- Init ---------- */
   document.addEventListener("DOMContentLoaded", () => {
-    initHero();
-    initSectionReveal();
-    initSewing();
-    initMapJourney();
-    initPersonalizacao();
-    initStepsThread();
-    initAbout();
-    initCtaFinal();
-    initMagneticButtons();
-    initBenefitCards();
-    initIdentificationTilt();
-    initFaqAnimations();
-    initScrollThread();
-    initActiveNavIndicator();
-    initHeadings();
-    initCustomCursor();
+    // Espera as fontes carregarem antes de rodar SplitType e medir qualquer
+    // geometria (getTotalLength, alturas de heading etc). Sem isso, o texto é
+    // dividido em linhas com a métrica da fonte de fallback; quando a fonte
+    // real chega depois (comum no mobile, com rede mais lenta), as palavras
+    // já não cabem mais nas mesmas linhas — o efeito de reveal por linha
+    // (Hero e títulos de seção) fica visivelmente quebrado. Timeout de
+    // segurança para não travar tudo caso `document.fonts` nunca resolva.
+    const fontsReady =
+      document.fonts && document.fonts.ready
+        ? Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 400))])
+        : Promise.resolve();
 
-    // Recalcula medidas dependentes de layout (tesoura/costura/linha de etapas)
-    // depois que fontes/imagens terminarem de carregar, para não ficar com
-    // valores medidos "cedo demais".
-    window.addEventListener("load", () => ScrollTrigger.refresh());
+    fontsReady.then(() => {
+      initHero();
+      initSectionReveal();
+      initSewing();
+      initMapJourney();
+      initPersonalizacao();
+      initStepsThread();
+      initAbout();
+      initCtaFinal();
+      initMagneticButtons();
+      initBenefitCards();
+      initIdentificationTilt();
+      initFaqAnimations();
+      initScrollThread();
+      initActiveNavIndicator();
+      initHeadings();
+      initCustomCursor();
+
+      // Recalcula medidas dependentes de layout (tesoura/costura/linha de etapas)
+      // depois que imagens terminarem de carregar, para não ficar com
+      // valores medidos "cedo demais".
+      window.addEventListener("load", () => ScrollTrigger.refresh());
+    });
   });
 })();

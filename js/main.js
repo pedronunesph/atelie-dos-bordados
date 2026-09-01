@@ -323,6 +323,25 @@
     backToTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
   }
 
+  /* ---------- Rolagem suave ao clicar em âncoras (#id) ----------
+     `scroll-behavior: smooth` global foi removido do CSS de propósito —
+     ele disputa com o scrub do ScrollTrigger durante a rolagem normal
+     (roda do mouse/touch), especialmente perceptível no mobile. Aqui a
+     suavidade é aplicada só no clique, um scroll pontual, sem afetar o
+     scroll contínuo do usuário. */
+  function bindAnchorScroll() {
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.querySelectorAll('a[href^="#"]:not([href="#"])').forEach((link) => {
+      link.addEventListener("click", (e) => {
+        const id = link.getAttribute("href").slice(1);
+        const target = document.getElementById(id);
+        if (!target) return;
+        e.preventDefault();
+        target.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth", block: "start" });
+      });
+    });
+  }
+
   /* ---------- Scroll reveal ---------- */
   function bindScrollReveal() {
     const targets = document.querySelectorAll("[data-reveal], [data-reveal-group]");
@@ -392,6 +411,7 @@
     bindLogoViewer();
     bindFaq();
     bindMobileMenu();
+    bindAnchorScroll();
     bindScrollUi();
     bindScrollReveal();
     bindStitchDividers();

@@ -40,10 +40,13 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+/* De propósito SEM `scroll-behavior: smooth` global — isso disputa com o
+   scrub do ScrollTrigger (native smooth-scroll e o rAF do GSAP competem pela
+   posição de scroll, causando o "engasgo" sentido especialmente no mobile).
+   A rolagem suave ao clicar num link de âncora é feita via JS em main.js. */
+html { scroll-behavior: auto; }
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
   * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
 
