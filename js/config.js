@@ -14,6 +14,11 @@ const SITE_CONFIG = {
 
   businessAddress: "Rua Caio Martins, 123 — Centro, Governador Valadares/MG",
 
+  // Link exato do Google Maps para este endereço (com place_id) — usado no
+  // botão "Ver no Google Maps" e no popup do mapa, em vez de uma busca genérica.
+  googleMapsUrl:
+    "https://www.google.com/maps/place/Rua+Caio+Martins,+123+-+Centro,+Gov.+Valadares+-+MG,+35010-080/@-18.8590313,-41.9479752,17.51z/data=!4m10!1m2!2m1!1s+Rua+Caio+Martins,+123+%E2%80%94+Centro,+Governador+Valadares%2FMG!3m6!1s0xb1a7082b7b0f1b:0x8d32bac889c57732!8m2!3d-18.858384!4d-41.9470524!15sCjlSdWEgQ2FpbyBNYXJ0aW5zLCAxMjMg4oCUIENlbnRybywgR292ZXJuYWRvciBWYWxhZGFyZXMvTUeSAQpzdWJwcmVtaXNl4AEA!16s%2Fg%2F11xfvf9p6d",
+
   businessHours: "Segunda a sexta, das 8h às 18h · Sábado, das 8h às 12h",
 
   // Categorias do portfólio — associe imagens a cada categoria em PORTFOLIO_ITEMS abaixo

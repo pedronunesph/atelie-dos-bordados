@@ -42,12 +42,19 @@
     document.querySelectorAll("[data-business-address]").forEach((el) => (el.textContent = SITE_CONFIG.businessAddress));
     document.querySelectorAll("[data-business-hours]").forEach((el) => (el.textContent = SITE_CONFIG.businessHours));
 
-    const query = encodeURIComponent(`${SITE_CONFIG.businessName}, ${SITE_CONFIG.businessAddress}`);
-
     const mapsLink = document.getElementById("location-maps-link");
     if (mapsLink) {
-      mapsLink.setAttribute("href", `https://www.google.com/maps/search/?api=1&query=${query}`);
+      mapsLink.setAttribute("href", googleMapsUrl());
     }
+  }
+
+  /* Link para o Google Maps: usa a URL exata configurada em
+     SITE_CONFIG.googleMapsUrl (o link real do local, com place_id) quando
+     disponível; senão, monta uma busca a partir do nome + endereço. */
+  function googleMapsUrl() {
+    if (SITE_CONFIG.googleMapsUrl) return SITE_CONFIG.googleMapsUrl;
+    const query = encodeURIComponent(`${SITE_CONFIG.businessName}, ${SITE_CONFIG.businessAddress}`);
+    return `https://www.google.com/maps/search/?api=1&query=${query}`;
   }
 
   /* ---------- Location map (Leaflet + OpenStreetMap, sem chave de API) ----------
@@ -68,8 +75,7 @@
 
     const address = SITE_CONFIG.businessAddress;
     const geocodeQuery = encodeURIComponent(address);
-    const mapsQuery = encodeURIComponent(`${SITE_CONFIG.businessName}, ${address}`);
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
+    const mapsUrl = googleMapsUrl();
 
     let lat = -18.8511;
     let lon = -41.9494; // Governador Valadares/MG — usado como centro de fallback caso a geocodificação falhe
